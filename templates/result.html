@@ -1,0 +1,14 @@
+{% extends 'base.html' %} {% block content %}
+<div>
+  <h1>Result Page</h1>
+  <a href="home.html">Home</a>
+  <ul>
+    {% for movie in recommendations %}
+    <li>{{ movie }}</li>
+    <img src="{{ recommendations[movie] }}" />
+    <br />
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+<br />

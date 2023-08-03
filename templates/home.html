@@ -1,0 +1,51 @@
+{% extends 'base.html' %} {% block content %}
+<div class="home" style="background-image: url('/static/images/home.jpg')">
+  <div class="home-form-container py-3 py-md-5 px-2 px-md-4">
+    <form action="#" class="home-form card row py-md-3 px-md-3" method="POST">
+      <div class="card-body">
+        <h5 class="card-title fw-bold text-center h2 mb-5">
+          Welcome to Movie Recommender
+        </h5>
+        <div class="col-md-12 mb-3">
+          <label for="movie_name" class="form-label" id="movie_name"
+            >Movie Name</label
+          >
+          <input
+            type="text"
+            id="movie_name"
+            name="movie_name"
+            value="{{ request.form['movie_name'] }}"
+            class="form-control form-control--dark"
+            placeholder="Movie Name"
+            required
+          />
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="genre" class="form-label" id="genre" name="genre"
+            >Movie Genre</label
+          >
+          <select
+            id="genre"
+            name="genre"
+            value="{{ request.form['genre'] }}"
+            class="form-select form-select--dark"
+            aria-placeholder="Genre"
+          >
+            <option selected>Choose...</option>
+            <option value="1">Action</option>
+            <option value="2">Adventure</option>
+            <option value="3">Comedy</option>
+            <option value="4">Drama</option>
+            <option value="5">Fantasy</option>
+            <option value="6">Science Fiction</option>
+            <option value="7">Horror</option>
+          </select>
+        </div>
+        <div class="col-md-12">
+          <button class="btn btn-primary">Recommend</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

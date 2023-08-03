@@ -1,0 +1,43 @@
+/***
+Dark styles Global
+ */
+
+.form-label {
+  font-weight: 600;
+}
+
+.form-control--dark,
+.form-control--dark:where(:active),
+.form-select--dark {
+  background: #212529 !important;
+  color: #adb5bd !important;
+  border-color: #333 !important;
+}
+
+.form-select--dark {
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 16px 12px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+
+/**
+  Home Page Styles (home.html)
+*/
+
+.home {
+  height: 100vh;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: white;
+  overflow: hidden;
+}
+
+.home-form-container {
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.home-form {
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.65));
+}
