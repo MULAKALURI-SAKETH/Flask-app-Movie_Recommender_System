@@ -3,6 +3,9 @@ import numpy as np
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 from flask import Flask, render_template, redirect, url_for, request
+from flask_wtf import FlaskForm
+from wtforms import StringField, SelectField, SubmitField
+from wtforms.validators import InputRequired
 import requests
 from ast import literal_eval
 import pandas as pd
@@ -71,10 +74,6 @@ for feature in features:
     merged_df[feature] = merged_df[feature].apply(data_cleaning)
 merged_df["genres"] = merged_df["genres"].apply(lambda x: " ".join(x))
 
-# def get_soup(x):
-#     return " ".join(x["keywords"]) + " " + " ".join(x["cast"]) + " " + " ".join(x["director"]) + " " + " ".join(x["genres"])
-# merged_df["soup"] = merged_df.apply(get_soup, axis=1)
-
 merged_df = merged_df.reset_index()
 indices = pd.Series(merged_df.index, index=merged_df["title"])
 
@@ -142,11 +141,14 @@ def get_recommendations(movie_title, genre):
     recommendations = features.iloc[indices[0]][:10]["title"].values
     return recommendations
 
-recommended_movies = get_recommendations("Up", "Comedy")
-
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'cba0e071eb22673dbd11de86c743e064'
+
+class MovieForm(FlaskForm):
+    movie_title = StringField("Movie Name", validators=[InputRequired()])
+    movie_genre = SelectField("Genre", choices=[("selected", "Choose..."), ("1", "Action"), ("2", "Adventure"), ("3", "Comedy"), ("4", "Drama"), ("5", "Fantasy"), ("6", "Science Fiction"), ("7", "Horror")], validators=[InputRequired()])
+    submit = SubmitField('Recommend')
 
 def get_poster_path(movie_title):
     base_url = "https://api.themoviedb.org/3/search/movie"
@@ -179,17 +181,30 @@ def get_poster_path_by_id(movie_id):
         return
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def home_page():
-    return render_template("home.html", title="Movie Magic")
-
-
-@app.route("/recommendations", methods=["POST"])
-def movies_page(movie_title):
+    movie_form = MovieForm()
     movie_posters = {}
-    for movie in recommended_movies:
-        movie_posters[movie] = get_poster_path(movie)
-    return render_template("result.html", title=f"Movie Magic - {movie_title}", recommendations=movie_posters)
+    
+    if movie_form.validate_on_submit():
+        movie_title = movie_form.movie_title.data
+        genre = movie_form.movie_genre.data
+        recommendations = get_recommendations(movie_title, genre).values
+        for movie in recommendations:
+            movie_posters[movie] = get_poster_path(movie)
+
+        return redirect(url_for("recommendations", movies=movie_posters))
+
+    return render_template("home.html", title="Movie Magic", form=movie_form)
+
+
+@app.route("/recommendations",  methods=["POST"])
+def movies_page():
+    movies = request.args.getlist("movies")
+    if not movies:
+        return redirect(url_for("home_page"))
+
+    return render_template("result.html", title="Movie Magic", movie_recommendations=movies)
 
 
 if __name__ == '__main__':
