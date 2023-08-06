@@ -8,13 +8,13 @@
           Welcome to Movie Recommender
         </h5>
         <div class="col-md-12 mb-3">
-          {{ render_field(form.movie_title, placeholder=form.movie_title.label.text) }}
+          {{ render_field(form.movie_title, class="form-control form-control--dark", placeholder=form.movie_title.label.text, id="movie_title") }}
         </div>
         <div class="col-md-6 mb-3">
           {{ render_field(form.movie_genre, class="form-select form-select--dark", id="genre") }}
         </div>
-        <div class="col-md-12">
-          {{ form.submit(class="btn btn-primary") }}
+        <div class="col-md-12 mb-3">
+          {{ form.submit(type="submit", class="btn btn-primary") }}
         </div>
       </div>
     </form>
