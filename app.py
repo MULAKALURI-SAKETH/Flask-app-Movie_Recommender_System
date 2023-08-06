@@ -84,17 +84,16 @@ movie_credits.loc[:, 'genres'] = movie_credits.loc[:, 'genres'].apply(str.lower)
 # Exploratory Data Analysis
 # Famous movies
 mostly_watched = merged_df.sort_values("popularity", ascending=False).head(10)["title"].values
-print(mostly_watched)
+# print(mostly_watched)
 
 # High budget movies
 high_b = merged_df.sort_values("budget", ascending=False).head(10)['title'].values
-print(high_b)
+# print(high_b)
 
 # Feature Extraction
 tv = TfidfVectorizer()
 genre_matrix = tv.fit_transform(movie_credits["genres"])
 genre_sim = cosine_similarity(genre_matrix)
-# print(genre_sim)
 
 
 # Content based filtering method to recommend similar movies
@@ -117,8 +116,8 @@ def recommendations(movie_name, genre):
     return recommended_movies
 
 
-recommended_movies = recommendations("The Martian", "Science Fiction")
-print(recommended_movies)
+# recommended_movies = recommendations("The Martian", "Science Fiction")
+# print(recommended_movies)
 
 # # K Nearest Neighbors algorithm
 features = movie_credits[movie_credits["genres"] != ""]
@@ -133,21 +132,22 @@ knn_model = NearestNeighbors(n_neighbors=11, algorithm='brute', metric='cosine')
 knn_model.fit(reduced_features)
 
 
-
 def get_recommendations(movie_title, genre):
     movie = movie_credits[(movie_credits['title'] == movie_title) & (movie_credits['genres'].str.contains(str(genre).lower()))].index[0]
     movie_feature_pca = pca.transform(csr_matrix(feature_matrix).toarray()[movie].reshape(1, -1))
     _, indices = knn_model.kneighbors(movie_feature_pca.reshape(1, -1))
-    recommendations = features.iloc[indices[0]][:10]["title"].values
+    recommendations = features.iloc[indices[0]][1:11]["title"].values
     return recommendations
 
+# similar_movies = get_recommendations("Up", "Comedy")
+# print(similar_movies)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'cba0e071eb22673dbd11de86c743e064'
+app.config['SECRET_KEY'] = '1680e7d233009251e5938f340e60c2b2'
 
 class MovieForm(FlaskForm):
     movie_title = StringField("Movie Name", validators=[InputRequired()])
-    movie_genre = SelectField("Genre", choices=[("selected", "Choose..."), ("1", "Action"), ("2", "Adventure"), ("3", "Comedy"), ("4", "Drama"), ("5", "Fantasy"), ("6", "Science Fiction"), ("7", "Horror")], validators=[InputRequired()])
+    movie_genre = SelectField("Genre", choices=[("1", "Action"), ("2", "Adventure"), ("3", "Comedy"), ("4", "Drama"), ("5", "Family"), ("6", "Fantasy"), ("7", "Science Fiction"), ("8", "Horror")], validators=[InputRequired()])
     submit = SubmitField('Recommend')
 
 def get_poster_path(movie_title):
@@ -176,9 +176,9 @@ def get_poster_path_by_id(movie_id):
     data = response.json()
 
     if data["poster_path"]:
-        return f"https://image.tmdb.org/t/b/w500{data['poster_path']}"
+        return f"https://image.tmdb.org/t/p/w500/{data['poster_path']}"
     else:
-        return
+        return ""
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -187,24 +187,31 @@ def home_page():
     movie_posters = {}
     
     if movie_form.validate_on_submit():
-        movie_title = movie_form.movie_title.data
-        genre = movie_form.movie_genre.data
-        recommendations = get_recommendations(movie_title, genre).values
-        for movie in recommendations:
+        movie_title = request.form["movie_title"]
+        genre = request.form["movie_genre"]
+        print(movie_title)
+        print(genre)
+        similar_movies = get_recommendations(movie_title, genre)
+        print(similar_movies)
+        for movie in similar_movies:
             movie_posters[movie] = get_poster_path(movie)
-
-        return redirect(url_for("recommendations", movies=movie_posters))
+        return redirect(url_for("movies_page", movies_list=similar_movies))
 
     return render_template("home.html", title="Movie Magic", form=movie_form)
 
 
 @app.route("/recommendations",  methods=["POST"])
 def movies_page():
-    movies = request.args.getlist("movies")
-    if not movies:
-        return redirect(url_for("home_page"))
-
-    return render_template("result.html", title="Movie Magic", movie_recommendations=movies)
+    if request.method == "POST":
+        movies = request.args.getlist("movies_list")
+        print(movies)
+        movie_posters = {}
+        # for movie in movies:
+        #     movie_posters[movie] = get_poster_path(movie)
+            
+        return render_template("result.html", title="Movie Magic", movie_recommendations=movie_posters)
+    
+    return redirect(url_for("home_page"))
 
 
 if __name__ == '__main__':
