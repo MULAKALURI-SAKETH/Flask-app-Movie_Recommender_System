@@ -2,13 +2,18 @@
 <div>
   <h1>Result Page</h1>
   <a href="home.html">Home</a>
-  <ul>
-    {% for movie in recommendations %}
-    <li>{{ movie }}</li>
-    <img src="{{ recommendations[movie] }}" />
-    <br />
+  {% if recommendations %}
+    {% for movie in movie_recommendations in  %}
+      <div class="card" style="width: 18rem;">
+        <img class="card-img-top" src="{{ movie_recommendations[movie] }}">
+        <div class="card-body">
+          <p class="card-text">{{ movie }}</p>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+  {% endif %}
+  {% else %}
+  <p>No movies found</p>
 </div>
 {% endblock %}
 <br />
