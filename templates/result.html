@@ -1,14 +1,21 @@
-{% extends 'base.html' %} {% block content %}
-<div>
-  <h1>Result Page</h1>
-  <a href="home.html">Home</a>
-  <ul>
-    {% for movie in recommendations %}
-    <li>{{ movie }}</li>
-    <img src="{{ recommendations[movie] }}" />
-    <br />
-    {% endfor %}
-  </ul>
+{% extends "base.html" %} {% block content %}
+<h2 class="text-white">Recommendations</h2>
+<div class="container justify-content-center d-flex gap-20">
+  <div class="row mt-4 justify-content-center d-flex">
+    {% if movie_recs %} {% for movie, poster in movie_recs.items() %}
+    <div class="col-md-4 mb-4">
+      <div class="card w-50 h-40">
+        <img class="card-img-top" src="{{ poster }}" alt="{{ movie }}" />
+        <div class="card-body">
+          <p class="card-text-white">{{ movie }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %} {% else %}
+    <div>
+      <p>No movies found</p>
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
-<br />
