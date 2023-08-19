@@ -1,0 +1,3 @@
+{% macro render_field(field) %}
+<label for="{{ field.id }}" class="form-label">{{ field.label.text }}</label>
+{{ field(class_="form-control form-control--dark", **kwargs)|safe }} {% endmacro %}
