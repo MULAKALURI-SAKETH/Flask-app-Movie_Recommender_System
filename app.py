@@ -1,19 +1,22 @@
 # Import necessary libraries
+from ast import literal_eval
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ast import literal_eval
-from scipy.sparse import csr_matrix
-import matplotlib.pyplot as plt
 import requests
-from flask import Flask, render_template, request, url_for, redirect
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, SubmitField
-from wtforms.validators import InputRequired
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+nltk.download("vader_lexicon")
+from scipy.sparse import csr_matrix
+from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
-
+from sklearn.pipeline import Pipeline
+from wtforms import SelectField, StringField, SubmitField
+from wtforms.validators import InputRequired
 
 # Data Collection
 movies = pd.read_csv("data/tmdb_5000_movies.csv")
@@ -68,44 +71,47 @@ def data_cleaning(feature):
         else:
             return ""
 
-
+# Sentiment Analysis
+sa = SentimentIntensityAnalyzer()
+merged_df["reviews"] = merged_df['keywords'].apply(lambda x: " ".join(x))
+merged_df["sentiment"] = merged_df["reviews"].apply(sa.polarity_scores)
+merged_df["sentiment"] = merged_df["sentiment"].apply(lambda x: "Yes" if x["compound"] >= 0.05 else "No" if x["compound"] <= -0.05 else "Neutral")
 features = ["cast", "keywords", "director"]
 for feature in features:
     merged_df[feature] = merged_df[feature].apply(data_cleaning)
 merged_df["genres"] = merged_df["genres"].apply(lambda x: " ".join(x))
 
 merged_df = merged_df.reset_index()
-movie_credits = merged_df[["title", "vote_average", "genres"]]
+movie_credits = merged_df[["title", "vote_average", "genres", "reviews", "sentiment"]]
 movie_credits = movie_credits[movie_credits["genres"] != ""]
 movie_credits.loc[:, 'genres'] = movie_credits.loc[:, 'genres'].apply(str.lower)
 
 # Exploratory Data Analysis
 # Famous movies
 famous_movies = merged_df.sort_values("popularity", ascending=False)
-plt.figure(figsize=(12, 8))
-plt.barh(famous_movies['title'].head(10), famous_movies["popularity"].head(10), color="red")
-plt.gca().invert_yaxis()
-plt.title("Famous movies")
-plt.xlabel("Popularity")
-plt.ylabel("Title")
-plt.show()
+# plt.figure(figsize=(12, 8))
+# plt.barh(famous_movies['title'].head(10), famous_movies["popularity"].head(10), color="red")
+# plt.gca().invert_yaxis()
+# plt.title("Famous movies")
+# plt.xlabel("Popularity")
+# plt.ylabel("Title")
+# plt.show()
 
 
 # High budget movies
 high_budget_movies = merged_df.sort_values("budget", ascending=False)
-plt.figure(figsize=(12, 8))
-plt.barh(high_budget_movies["title"].head(10), high_budget_movies["budget"].head(10), color="blue")
-plt.gca().invert_yaxis()
-plt.title("High Budget Movies")
-plt.xlabel("Budget")
-plt.ylabel("Title")
-plt.show()
+# plt.figure(figsize=(12, 8))
+# plt.barh(high_budget_movies["title"].head(10), high_budget_movies["budget"].head(10), color="blue")
+# plt.gca().invert_yaxis()
+# plt.title("High Budget Movies")
+# plt.xlabel("Budget")
+# plt.ylabel("Title")
+# plt.show()
 
 # Feature Extraction
 tv = TfidfVectorizer()
 genre_matrix = tv.fit_transform(movie_credits["genres"])
 genre_sim = cosine_similarity(genre_matrix)
-
 
 # Content based filtering method to recommend similar movies
 def recommendations(movie_name, genre):
@@ -125,29 +131,31 @@ def recommendations(movie_name, genre):
     recommended_movies = movie_credits.loc[top_movies, 'title']
     return recommended_movies
 
-
 # K Nearest Neighbors algorithm for recommending movies
 features = movie_credits[movie_credits["genres"] != ""]
 features = features.dropna()
-tv = TfidfVectorizer()
 
 pca = PCA(n_components=22)
 reduced_features = pca.fit_transform(csr_matrix(genre_matrix).toarray())
 
-knn_model = NearestNeighbors(n_neighbors=11, algorithm='brute', metric='cosine')
+knn_model = NearestNeighbors(n_neighbors=11, algorithm='brute', p=2)
 knn_model.fit(reduced_features)
 
 
 def get_recommendations(movie_title, genre):
-    movie = movie_credits[(movie_credits['title'] == movie_title) & (movie_credits['genres'].str.contains(str(genre).lower()))].index[0]
+    movie = movie_credits[(movie_credits['title'] == movie_title) & (movie_credits['genres'].str.contains(str(genre).lower()))]
+    if movie["sentiment"].values == "No":
+        return None
+    movie = movie.index[0]
     movie_feature_pca = pca.transform(csr_matrix(genre_matrix).toarray()[movie].reshape(1, -1))
     _, indices = knn_model.kneighbors(movie_feature_pca.reshape(1, -1))
-    similar_movies = features.iloc[indices[0]][1:11]["title"].values.tolist()
+    similar_movies = features.iloc[indices[0]][0:][["title", "sentiment"]]
+    similar_movies = similar_movies[similar_movies['title'] != movie_title]
     return similar_movies
 
 app = Flask(__name__)
-API_KEY = '1680e7d233009251e5938f340e60c2b2'
-app.secret_key = "Ms^&21Lxc()954"
+API_KEY = '36c656bed0e8f7ed54c5098b76fe866e'
+app.config['SECRET_KEY'] = "Ms^&21Lxc()854"
 
 class MovieForm(FlaskForm):
     movie_title = StringField("Movie Name", validators=[InputRequired()])
@@ -161,10 +169,9 @@ def get_poster_path(movie_title):
         'query': movie_title,
     }
     response = requests.get(base_url, params=params)
-    data = response.json()
-
-    if 'results' in data and data["results"]:
-        movie_id = data["results"][0]["id"]
+    data = dict(response.json())
+    if (data != dict()) and 'results' in data.keys():
+        movie_id = data["results"][0]['id']
         return get_poster_path_by_id(movie_id)
     else:
         print(f"No results found")
@@ -177,9 +184,8 @@ def get_poster_path_by_id(movie_id):
     }
 
     response = requests.get(base_url, params=params)
-    data = response.json()
-
-    if data["poster_path"]:
+    data = dict(response.json())
+    if (data != dict()) and ('poster_path' in data.keys()):
         return f"https://image.tmdb.org/t/p/w500/{data['poster_path']}"
     else:
         return ""
@@ -195,13 +201,26 @@ def home_page():
             return redirect(url_for("movies_page", movie_title=movie_title, movie_genre=genre))
     return render_template("home.html", form=movie_form)
 
-@app.route("/recommendations/<string:movie_title>_<string:movie_genre>")
+@app.route("/recommendations/<string:movie_title>?<string:movie_genre>")
 def movies_page(movie_title, movie_genre):
-    movie_posters = {}
-    movies_list = get_recommendations(movie_title, movie_genre)
-    for movie in movies_list:
-        movie_posters[movie] = get_poster_path(movie)
-    return render_template("result.html", title="Result page", movie_recs=movie_posters)
+    try:
+        p_movie_posters, n_movie_posters = {}, {}
+        similar_movies = get_recommendations(movie_title, movie_genre)
+        if similar_movies is None:
+            return render_template("not_recommended.html", title=movie_title)
+        p_movies = similar_movies[similar_movies["sentiment"] != "No"]["title"].values.tolist()
+        n_movies = similar_movies[similar_movies["sentiment"] == "No"]["title"].values.tolist()
+        for movie in p_movies:
+            p_movie_posters[movie] = get_poster_path(movie)
+        for movie in n_movies:
+            n_movie_posters[movie] = get_poster_path(movie)
+        return render_template("result.html", title="Result page", recommended_movies=p_movie_posters, negative_movies=n_movie_posters)
+    except IndexError as e:
+        return "The movie with given genre not found."
+
+@app.errorhandler(500)
+def servererror(error):
+    return "<b style='font-size:40px;'>The movie with given genre not found</b>"
 
 if __name__ == '__main__':
     app.run(debug=True)
