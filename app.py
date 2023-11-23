@@ -1,7 +1,7 @@
-# Import necessary libraries
+# Import necessary libraries 
 from ast import literal_eval
 import matplotlib.pyplot as plt
-import numpy as np
+import numpy as np 
 import pandas as pd
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
@@ -14,51 +14,31 @@ from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
-from sklearn.pipeline import Pipeline
 from wtforms import SelectField, StringField, SubmitField
 from wtforms.validators import InputRequired
 
 # Data Collection
-movies = pd.read_csv("data/tmdb_5000_movies.csv")
+movies_df = pd.read_csv("data/tmdb_5000_movies.csv")
 credits_df = pd.read_csv("data/tmdb_5000_credits.csv")
 
 # Data Preprocessing
-movies["title"] = movies["title"].drop_duplicates()
+movies_df["title"] = movies_df["title"].drop_duplicates()
 credits_df = credits_df.rename(columns={"movie_id": "id"})
-
-merged_df = movies.merge(credits_df, on="id").drop("title_y", axis=1)
+merged_df = movies_df.merge(credits_df, on="id").drop("title_y", axis=1)
 merged_df = merged_df.rename(columns={"title_x": "title"})
-
-
-def fetch_director(x):
-    '''This function fetches the director names from
-        the crew attribute from the dataset'''
-    for i in x:
-        if i["job"] == "Director":
-            return i["name"]
-    return ""
-
-
 def string_to_list(x):
-    '''Creates a list consisting of names of the actors
-        of the particular movies'''
     if isinstance(x, list):
         names = [i["name"] for i in x]
         if len(names) > 3:
             names = names[:3]
         return names
     return []
-
-
 features = ["cast", "crew", "keywords", "genres"]
 for feature in features:
     merged_df[feature] = merged_df[feature].apply(literal_eval)
-merged_df["director"] = merged_df["crew"].apply(fetch_director)
 features = ["cast", "keywords", "genres"]
 for feature in features:
     merged_df[feature] = merged_df[feature].apply(string_to_list)
-
-
 # Removing unwanted characters from the attribute values
 def data_cleaning(feature):
     if isinstance(feature, list):
@@ -68,15 +48,14 @@ def data_cleaning(feature):
         if isinstance(feature, str):
             new_str = str.lower(feature.replace(" ", ""))
             return new_str
-        else:
-            return ""
+        else: return ""
 
 # Sentiment Analysis
 sa = SentimentIntensityAnalyzer()
 merged_df["reviews"] = merged_df['keywords'].apply(lambda x: " ".join(x))
 merged_df["sentiment"] = merged_df["reviews"].apply(sa.polarity_scores)
 merged_df["sentiment"] = merged_df["sentiment"].apply(lambda x: "Yes" if x["compound"] >= 0.05 else "No" if x["compound"] <= -0.05 else "Neutral")
-features = ["cast", "keywords", "director"]
+features = ["cast", "keywords"]
 for feature in features:
     merged_df[feature] = merged_df[feature].apply(data_cleaning)
 merged_df["genres"] = merged_df["genres"].apply(lambda x: " ".join(x))
@@ -86,27 +65,29 @@ movie_credits = merged_df[["title", "vote_average", "genres", "reviews", "sentim
 movie_credits = movie_credits[movie_credits["genres"] != ""]
 movie_credits.loc[:, 'genres'] = movie_credits.loc[:, 'genres'].apply(str.lower)
 
+movie_credits1 = movie_credits[movie_credits["sentiment"] == "No"]
+print(movie_credits1)
 # Exploratory Data Analysis
-# Famous movies
+Famous movies
 famous_movies = merged_df.sort_values("popularity", ascending=False)
-# plt.figure(figsize=(12, 8))
-# plt.barh(famous_movies['title'].head(10), famous_movies["popularity"].head(10), color="red")
-# plt.gca().invert_yaxis()
-# plt.title("Famous movies")
-# plt.xlabel("Popularity")
-# plt.ylabel("Title")
-# plt.show()
+plt.figure(figsize=(12, 8))
+plt.barh(famous_movies['title'].head(10), famous_movies["popularity"].head(10), color="red")
+plt.gca().invert_yaxis()
+plt.title("Famous movies")
+plt.xlabel("Popularity")
+plt.ylabel("Title")
+plt.show()
 
 
 # High budget movies
 high_budget_movies = merged_df.sort_values("budget", ascending=False)
-# plt.figure(figsize=(12, 8))
-# plt.barh(high_budget_movies["title"].head(10), high_budget_movies["budget"].head(10), color="blue")
-# plt.gca().invert_yaxis()
-# plt.title("High Budget Movies")
-# plt.xlabel("Budget")
-# plt.ylabel("Title")
-# plt.show()
+plt.figure(figsize=(12, 8))
+plt.barh(high_budget_movies["title"].head(10), high_budget_movies["budget"].head(10), color="blue")
+plt.gca().invert_yaxis()
+plt.title("High Budget Movies")
+plt.xlabel("Budget")
+plt.ylabel("Title")
+plt.show()
 
 # Feature Extraction
 tv = TfidfVectorizer()
@@ -132,8 +113,7 @@ def recommendations(movie_name, genre):
     return recommended_movies
 
 # K Nearest Neighbors algorithm for recommending movies
-features = movie_credits[movie_credits["genres"] != ""]
-features = features.dropna()
+features = movie_credits[movie_credits["genres"] != ""].dropna()
 
 pca = PCA(n_components=22)
 reduced_features = pca.fit_transform(csr_matrix(genre_matrix).toarray())
@@ -205,7 +185,7 @@ def home_page():
 def movies_page(movie_title, movie_genre):
     try:
         p_movie_posters, n_movie_posters = {}, {}
-        similar_movies = get_recommendations(movie_title, movie_genre)
+        similar_movies = get_recommendations(movie_title, movie_genre)        
         if similar_movies is None:
             return render_template("not_recommended.html", title=movie_title)
         p_movies = similar_movies[similar_movies["sentiment"] != "No"]["title"].values.tolist()
